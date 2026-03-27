@@ -52,6 +52,18 @@ function initialize() {
     );
   `);
 
+  // Migration for balance_applied column
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(orders)").all();
+    const hasBalanceApplied = tableInfo.some(col => col.name === 'balance_applied');
+    if (!hasBalanceApplied) {
+      db.prepare("ALTER TABLE orders ADD COLUMN balance_applied REAL DEFAULT 0").run();
+      console.log('✅ Database migrated: Added balance_applied column to orders table.');
+    }
+  } catch (e) {
+    console.error('Migration error:', e.message);
+  }
+
   // Insert default settings
   const defaults = {
     admin_password: 'admin123',

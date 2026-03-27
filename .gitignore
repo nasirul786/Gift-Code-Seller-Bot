@@ -1,4 +1,6 @@
 tmp/
 data.db
 .env
+data.db-shm
+data.db-wal
 node_modules/
