@@ -29,7 +29,6 @@ function createBot() {
     const availableAccounts = db.getAvailableAccountCount();
     const settings = db.getAllSettings();
     const pricePerAccount = parseFloat(settings.price_per_account);
-    const worthPerAccount = parseFloat(settings.worth_per_account);
 
     const keyboard = new Keyboard()
       .text('📱 Buy Telegram Account')
@@ -57,10 +56,6 @@ function createBot() {
     // Check for existing pending order
     const pendingOrder = db.getUserPendingOrder(String(ctx.from.id));
     if (pendingOrder) {
-      const settings = db.getAllSettings();
-      const worthPerAccount = parseFloat(settings.worth_per_account);
-      const totalWorth = pendingOrder.quantity_requested * worthPerAccount;
-
       const keyboard = new InlineKeyboard()
         .url('💳 Pay Now', pendingOrder.payment_url)
         .row()
@@ -78,7 +73,6 @@ function createBot() {
     const availableAccounts = db.getAvailableAccountCount();
     const settings = db.getAllSettings();
     const pricePerAccount = parseFloat(settings.price_per_account);
-    const worthPerAccount = parseFloat(settings.worth_per_account);
 
     if (availableAccounts === 0) {
       return ctx.reply(
@@ -179,10 +173,6 @@ function createBot() {
     if (!accounts || accounts.length === 0) {
       return ctx.reply('❌ You have no purchased accounts.', { parse_mode: 'HTML' });
     }
-
-    const settings = db.getAllSettings();
-    const worthPerAccount = parseFloat(settings.worth_per_account);
-    const totalWorth = accounts.length * worthPerAccount;
     
     let accountList = '';
     accounts.forEach((a, index) => {
@@ -289,7 +279,6 @@ function createBot() {
       // Calculate price
       const settings = db.getAllSettings();
       const pricePerAccount = parseFloat(settings.price_per_account);
-      const worthPerAccount = parseFloat(settings.worth_per_account);
       let totalAmount = quantity * pricePerAccount;
 
       // Apply refunded balance
@@ -316,9 +305,10 @@ function createBot() {
         const orderId = db.createOrder(
           String(ctx.from.id),
           quantity,
-          balanceUsed,
+          0,
           balanceTrackId,
-          ''
+          '',
+          balanceUsed
         );
 
         db.markAccountsSold(
@@ -398,16 +388,21 @@ function createBot() {
           quantity,
           parseFloat(totalAmount.toFixed(2)),
           invoice.trackId,
-          invoice.paymentUrl
+          invoice.paymentUrl,
+          balanceUsed
         );
 
-        // If balance was used, deduct it now
         if (balanceUsed > 0) {
           db.setRefundedBalance(
             String(ctx.from.id),
             user.refunded_balance - balanceUsed
           );
         }
+
+        const payKeyboard = new InlineKeyboard()
+          .url('💳 Pay Now', invoice.paymentUrl)
+          .row()
+          .text('❌ Cancel Invoice', 'cancel_order_' + orderId);
 
         await ctx.reply(
           `📄 <b>Invoice Generated!</b>\n\n` +

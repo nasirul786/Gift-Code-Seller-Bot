@@ -41,6 +41,7 @@ function initialize() {
       quantity_requested INTEGER NOT NULL,
       quantity_delivered INTEGER DEFAULT 0,
       amount_usd REAL NOT NULL,
+      balance_applied REAL DEFAULT 0,
       refunded_amount REAL DEFAULT 0,
       track_id TEXT,
       payment_url TEXT,
@@ -220,7 +221,11 @@ function getUserPendingOrder(telegramId) {
   const sixtyMinMs = 60 * 60 * 1000;
 
   if (now - createdAt >= sixtyMinMs) {
-    // Auto-expire
+    // Auto-expire and refund balance
+    if (order.balance_applied > 0) {
+      db.prepare('UPDATE users SET refunded_balance = refunded_balance + ? WHERE telegram_id = ?')
+        .run(order.balance_applied, order.user_id);
+    }
     db.prepare("UPDATE orders SET status = 'expired' WHERE id = ?").run(order.id);
     return null;
   }
@@ -230,9 +235,15 @@ function getUserPendingOrder(telegramId) {
 
 function cancelOrder(orderId, userId) {
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(orderId, userId);
-  if (!order || order.status !== 'pending') return false;
+  if (!order || (order.status !== 'pending' && order.status !== 'paid')) return false;
+  
+  // Restore balance if any was applied
+  if (order.balance_applied > 0) {
+    db.prepare('UPDATE users SET refunded_balance = refunded_balance + ? WHERE telegram_id = ?')
+      .run(order.balance_applied, order.user_id);
+  }
+
   db.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").run(orderId);
-  // Restore refunded balance if it was deducted when order was created
   return true;
 }
 
@@ -256,12 +267,12 @@ function deleteAccount(accountId) {
   return { success: true, message: 'Account deleted' };
 }
 
-function createOrder(userId, quantity, amountUsd, trackId, paymentUrl) {
+function createOrder(userId, quantity, amountUsd, trackId, paymentUrl, balanceApplied = 0) {
   const result = db
     .prepare(
-      'INSERT INTO orders (user_id, quantity_requested, amount_usd, track_id, payment_url) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO orders (user_id, quantity_requested, amount_usd, track_id, payment_url, balance_applied) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    .run(userId, quantity, amountUsd, trackId, paymentUrl);
+    .run(userId, quantity, amountUsd, trackId, paymentUrl, balanceApplied);
   return result.lastInsertRowid;
 }
 
