@@ -1,63 +1,74 @@
-# 🎁 Gift Code Seller Telegram Bot
+# Telegram Account Seller Bot 🇪🇬
 
-A robust and professional Telegram bot for selling gift codes (like Fawry) using Node.js, SQLite, and the Grammy framework. It features OxaPay crypto payment integration, an automated delivery system, and a premium web-based admin panel.
+A powerful, automated Telegram bot built with Node.js and SQLite for selling Telegram accounts (Phone Number + OTP Link). Features a professional admin dashboard and integrated crypto payments.
 
 ## 🚀 Features
 
-### 🤖 Telegram Bot
-- **Buy Gift Codes**: Simple flow to purchase codes with real-time stock validation.
-- **Crypto Payments**: Integrated with **OxaPay** for secure cryptocurrency payments.
-- **Automated Delivery**: Codes are delivered instantly via a `.txt` file upon payment confirmation.
-- **Pending Order Management**: Prevents multiple pending orders; users can view or cancel active invoices.
-- **Refund System**: If stock runs out mid-order, the remaining balance is added to the user's "Refunded Balance" for their next purchase.
-- **Account Management**: View purchase history, total spent, and download all previously purchased codes.
+### **Bot Features**
+- **Automated Sales**: Users can browse and buy Telegram accounts 24/7.
+- **Instant Delivery**: Upon payment confirmation, the bot generates and sends a `.txt` file containing account details (Phone Number & OTP Link).
+- **Balance System**: Includes a "Refunded Balance" system for users, allowing credits to be used for future purchases.
+- **Real-time Stock**: Users can see how many accounts are available for purchase.
+- **Pending Invoice Management**: Users can only have one active invoice at a time, with an easy "Cancel" option to start a new one.
 
-### 📊 Admin Panel
-- **Modern UI**: Professional white-themed dashboard built with Bootstrap 5 and Bootstrap Icons.
-- **Real-time Stats**: Track total revenue, orders, stock levels, and user growth.
-- **Inventory Management**: Add codes in bulk (one per line) and delete available codes.
-- **Order Tracking**: Detailed list of all orders with status tracking (Pending, Paid, Delivered, Expired, Cancelled).
-- **User Management**: View all registered users and their refunded balances.
-- **Settings**: Easily change admin password, pricing, and gift code worth.
+### **Admin Dashboard**
+- **Sleek Interface**: A modern, responsive SPA built with Bootstrap and SweetAlert2.
+- **Inventory Management**:
+    - **Single Add**: Add accounts one-by-one with dedicated fields.
+    - **Bulk Add**: Import accounts in mass using the `Phone|Link` format.
+- **Live Statistics**: Monitor total revenue, accounts sold, available stock, and user growth.
+- **Financial Controls**:
+    - **Update Pricing**: Set the global USD price per account.
+    - **Manual Balance Adjustments**: Edit any user's refunded balance directly from the "Users" tab.
+- **Order Tracking**: View detailed history of all orders, including payment status and delivery timestamps.
 
-## 🛠️ Technology Stack
-- **Backend**: Node.js, Express
-- **Bot Framework**: Grammy
-- **Database**: SQLite (using `better-sqlite3`)
-- **Payments**: OxaPay API
-- **Admin Frontend**: HTML5, Vanilla JS (ES5 compatible), Bootstrap 5, Bootstrap Icons
+## 🛠️ Tech Stack
+- **Bot Engine**: [grammY](https://grammy.dev/)
+- **Backend**: Express.js
+- **Database**: SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3))
+- **Payments**: [OxaPay API](https://oxapay.com/)
+- **Frontend**: Vanilla JS + Bootstrap 5 + SweetAlert2
 
-## ⚙️ Setup & Installation
+## 📦 Setup & Installation
 
-### 1. Clone the repository
+### 1. Prerequisites
+- Node.js (v18+)
+- A [Telegram Bot Token](https://t.me/BotFather)
+- An [OxaPay Merchant API Key](https://oxapay.com/)
+
+### 2. Clone and Install
 ```bash
 git clone https://github.com/nasirul786/Gift-Code-Seller-Bot.git
 cd Gift-Code-Seller-Bot
-```
-
-### 2. Install dependencies
-```bash
 npm install
 ```
 
-### 3. Configure environment variables
+### 3. Environment Variables
 Create a `.env` file in the root directory:
 ```env
 BOT_TOKEN=your_telegram_bot_token
 OXAPAY_MERCHANT_API_KEY=your_oxapay_api_key
 BASE_URL=https://your-domain.ngrok-free.dev
-PORT=3000
+PORT=3001
 ```
 
-### 4. Run the application
+### 4. Start the Application
 ```bash
-npm start
+node index.js
 ```
 
-## 🔐 Security
-- Admin panel is protected by a password defined in the database (default: `admin123`).
-- Webhook endpoints are designed to handle OxaPay status updates securely.
-- Sensitive environment variables are managed via `.env`.
+## 📂 Project Structure
+```text
+├── src/
+│   ├── bot.js          # Bot logic, commands, and customer flows
+│   ├── database.js     # SQLite schema and data access methods
+│   ├── server.js       # Express server, Admin API, and Webhooks
+│   └── oxapay.js       # OxaPay API integration wrapper
+├── public/
+│   └── admin/          # Admin Panel SPA (HTML/JS/CSS)
+├── index.js            # Unified entry point
+└── data.db             # SQLite database (generated on first run)
+```
 
-## 📄 License
-This project is for demonstration purposes. Use responsibly.
+## 📜 License
+MIT License. Feel free to use and modify!

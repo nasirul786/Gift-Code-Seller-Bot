@@ -25,9 +25,10 @@ function initialize() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS gift_codes (
+    CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT UNIQUE NOT NULL,
+      number TEXT UNIQUE NOT NULL,
+      otp_link TEXT NOT NULL,
       is_sold INTEGER DEFAULT 0,
       order_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -50,11 +51,10 @@ function initialize() {
     );
   `);
 
-  // Insert default settings if not exist
+  // Insert default settings
   const defaults = {
     admin_password: 'admin123',
-    price_per_code: '1.00',
-    worth_per_code: '10',
+    price_per_account: '1.00',
   };
 
   const insertSetting = db.prepare(
@@ -136,67 +136,71 @@ function setRefundedBalance(telegramId, amount) {
   ).run(amount, telegramId);
 }
 
-// ─── Gift Codes ──────────────────────────────────────
+// ─── Telegram Accounts ───────────────────────────────
 
-function addGiftCodes(codes) {
-  const insert = db.prepare('INSERT OR IGNORE INTO gift_codes (code) VALUES (?)');
-  const insertMany = db.transaction((codes) => {
+function addAccounts(items) {
+  const insert = db.prepare('INSERT OR IGNORE INTO accounts (number, otp_link) VALUES (?, ?)');
+  const insertMany = db.transaction((items) => {
     let added = 0;
-    for (const code of codes) {
-      const trimmed = code.trim();
+    for (const item of items) {
+      const trimmed = item.trim();
       if (trimmed) {
-        const result = insert.run(trimmed);
-        if (result.changes > 0) added++;
+        // Expected format: Phone|Link
+        const [number, link] = trimmed.split('|');
+        if (number && link) {
+          const result = insert.run(number.trim(), link.trim());
+          if (result.changes > 0) added++;
+        }
       }
     }
     return added;
   });
-  return insertMany(codes);
+  return insertMany(items);
 }
 
-function getAvailableCodes(limit) {
+function getAvailableAccounts(limit) {
   return db
     .prepare(
-      'SELECT * FROM gift_codes WHERE is_sold = 0 ORDER BY id ASC LIMIT ?'
+      'SELECT * FROM accounts WHERE is_sold = 0 ORDER BY id ASC LIMIT ?'
     )
     .all(limit);
 }
 
-function getAvailableCodeCount() {
+function getAvailableAccountCount() {
   return db
-    .prepare('SELECT COUNT(*) as count FROM gift_codes WHERE is_sold = 0')
+    .prepare('SELECT COUNT(*) as count FROM accounts WHERE is_sold = 0')
     .get().count;
 }
 
-function getTotalCodeCount() {
-  return db.prepare('SELECT COUNT(*) as count FROM gift_codes').get().count;
+function getTotalAccountCount() {
+  return db.prepare('SELECT COUNT(*) as count FROM accounts').get().count;
 }
 
-function getSoldCodeCount() {
+function getSoldAccountCount() {
   return db
-    .prepare('SELECT COUNT(*) as count FROM gift_codes WHERE is_sold = 1')
+    .prepare('SELECT COUNT(*) as count FROM accounts WHERE is_sold = 1')
     .get().count;
 }
 
-function markCodesSold(codeIds, orderId) {
+function markAccountsSold(accountIds, orderId) {
   const update = db.prepare(
-    'UPDATE gift_codes SET is_sold = 1, order_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?'
+    'UPDATE accounts SET is_sold = 1, order_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?'
   );
   const updateMany = db.transaction((ids) => {
     for (const id of ids) {
       update.run(orderId, id);
     }
   });
-  updateMany(codeIds);
+  updateMany(accountIds);
 }
 
-function getAllGiftCodes(page = 1, limit = 50) {
+function getAllAccounts(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
-  const codes = db
-    .prepare('SELECT * FROM gift_codes ORDER BY id DESC LIMIT ? OFFSET ?')
+  const accounts = db
+    .prepare('SELECT * FROM accounts ORDER BY id DESC LIMIT ? OFFSET ?')
     .all(limit, offset);
-  const total = getTotalCodeCount();
-  return { codes, total, page, totalPages: Math.ceil(total / limit) };
+  const total = getTotalAccountCount();
+  return { accounts, total, page, totalPages: Math.ceil(total / limit) };
 }
 
 // ─── Orders ──────────────────────────────────────────
@@ -232,24 +236,24 @@ function cancelOrder(orderId, userId) {
   return true;
 }
 
-function getUserPurchasedCodes(telegramId) {
+function getUserPurchasedAccounts(telegramId) {
   return db
     .prepare(
-      `SELECT gc.code, gc.sold_at, o.quantity_requested
-       FROM gift_codes gc
-       JOIN orders o ON gc.order_id = o.id
-       WHERE o.user_id = ? AND gc.is_sold = 1
-       ORDER BY gc.sold_at DESC`
+      `SELECT a.number, a.otp_link, a.sold_at, o.quantity_requested
+       FROM accounts a
+       JOIN orders o ON a.order_id = o.id
+       WHERE o.user_id = ? AND a.is_sold = 1
+       ORDER BY a.sold_at DESC`
     )
     .all(telegramId);
 }
 
-function deleteGiftCode(codeId) {
-  const code = db.prepare('SELECT * FROM gift_codes WHERE id = ?').get(codeId);
-  if (!code) return { success: false, message: 'Code not found' };
-  if (code.is_sold) return { success: false, message: 'Cannot delete sold code' };
-  db.prepare('DELETE FROM gift_codes WHERE id = ?').run(codeId);
-  return { success: true, message: 'Code deleted' };
+function deleteAccount(accountId) {
+  const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
+  if (!account) return { success: false, message: 'Account not found' };
+  if (account.is_sold) return { success: false, message: 'Cannot delete sold account' };
+  db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
+  return { success: true, message: 'Account deleted' };
 }
 
 function createOrder(userId, quantity, amountUsd, trackId, paymentUrl) {
@@ -339,7 +343,7 @@ function getOrderStats() {
     pendingOrders,
     totalRevenue,
     totalRefunded,
-    totalCodesSold,
+    totalAccountsSold: totalCodesSold,
   };
 }
 
@@ -347,9 +351,9 @@ function getOrderStats() {
 
 function getDashboardStats() {
   const orderStats = getOrderStats();
-  const totalCodes = getTotalCodeCount();
-  const availableCodes = getAvailableCodeCount();
-  const soldCodes = getSoldCodeCount();
+  const totalAccounts = getTotalAccountCount();
+  const availableAccounts = getAvailableAccountCount();
+  const soldAccounts = getSoldAccountCount();
   const totalUsers = getUserCount();
   const settings = getAllSettings();
 
@@ -364,10 +368,10 @@ function getDashboardStats() {
     )
     .all();
 
-  // Codes sold by day (last 30 days)
-  const codesSoldByDay = db
+  // Accounts sold by day (last 30 days)
+  const accountsSoldByDay = db
     .prepare(
-      `SELECT DATE(delivered_at) as date, SUM(quantity_delivered) as codes_sold
+      `SELECT DATE(delivered_at) as date, SUM(quantity_delivered) as accounts_sold
        FROM orders
        WHERE status = 'delivered' AND delivered_at >= datetime('now', '-30 days')
        GROUP BY DATE(delivered_at)
@@ -385,7 +389,7 @@ function getDashboardStats() {
     .prepare(
       `SELECT user_id, 
               COUNT(*) as total_orders, 
-              SUM(quantity_delivered) as total_codes,
+              SUM(quantity_delivered) as total_accounts,
               SUM(amount_usd) as total_spent
        FROM orders 
        WHERE status = 'delivered'
@@ -404,13 +408,13 @@ function getDashboardStats() {
 
   return {
     ...orderStats,
-    totalCodes,
-    availableCodes,
-    soldCodes,
+    totalAccounts,
+    availableAccounts,
+    soldAccounts,
     totalUsers,
     settings,
     revenueByDay,
-    codesSoldByDay,
+    accountsSoldByDay,
     recentOrders,
     topBuyers,
     totalRefundedBalance,
@@ -429,17 +433,17 @@ module.exports = {
   getUserCount,
   updateRefundedBalance,
   setRefundedBalance,
-  addGiftCodes,
-  getAvailableCodes,
-  getAvailableCodeCount,
-  getTotalCodeCount,
-  getSoldCodeCount,
-  markCodesSold,
-  getAllGiftCodes,
+  addAccounts,
+  getAvailableAccounts,
+  getAvailableAccountCount,
+  getTotalAccountCount,
+  getSoldAccountCount,
+  markAccountsSold,
+  getAllAccounts,
   getUserPendingOrder,
   cancelOrder,
-  getUserPurchasedCodes,
-  deleteGiftCode,
+  getUserPurchasedAccounts,
+  deleteAccount,
   createOrder,
   getOrderByTrackId,
   updateOrderStatus,

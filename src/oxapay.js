@@ -21,8 +21,8 @@ async function createInvoice({
       callback_url: callbackUrl,
       sandbox: true,
       order_id: String(orderId),
-      description: description || 'Gift Code Purchase',
-      thanks_message: 'Thank you for your purchase! Your gift codes will be delivered shortly.',
+      description: description || 'Telegram Account Purchase',
+      thanks_message: 'Thank you for your purchase! Your accounts will be delivered shortly.',
     },
     {
       headers: {

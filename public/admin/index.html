@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Gift Code Admin</title>
-  <meta name="description" content="Admin dashboard for managing Fawry gift codes">
+  <title>TG Account Admin</title>
+  <meta name="description" content="Admin dashboard for managing Telegram accounts">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     :root {
       --primary: #4f46e5;
@@ -300,6 +301,10 @@
       .topbar { padding: 0 14px; }
       .login-box { padding: 32px 24px; }
     }
+
+    .mode-toggle { font-size: 11px; cursor: pointer; }
+    .mode-toggle span { color: #94a3b8; transition: color 0.2s; }
+    .mode-toggle span.active-toggle { color: var(--primary); font-weight: 700; text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -307,7 +312,7 @@
 <!-- ── Login Screen ─────────────────────────── -->
 <div id="loginScreen">
   <div class="login-box">
-    <div class="logo-icon"><i class="bi bi-gift"></i></div>
+    <div class="logo-icon"><i class="bi bi-telephone-fill"></i></div>
     <h1>Admin Panel</h1>
     <p class="subtitle">Enter your admin password to continue</p>
     <div class="alert alert-danger py-2 d-none" id="loginErr" style="font-size:13px;border-radius:10px">Invalid password. Try again.</div>
@@ -324,8 +329,8 @@
   <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="brand-icon"><i class="bi bi-gift-fill"></i></div>
-      Gift Code Admin
+      <div class="brand-icon"><i class="bi bi-telephone-fill"></i></div>
+      TG Account Admin
     </div>
     <div class="topbar-actions">
       <button class="btn btn-ghost" onclick="refreshAll()"><i class="bi bi-arrow-clockwise"></i></button>
@@ -337,7 +342,7 @@
   <div class="nav-section">
     <nav class="nav">
       <a class="nav-link active" data-page="overview" onclick="showPage('overview')"><i class="bi bi-grid-1x2-fill"></i> Overview</a>
-      <a class="nav-link" data-page="codes" onclick="showPage('codes')"><i class="bi bi-upc-scan"></i> Gift Codes</a>
+      <a class="nav-link" data-page="accounts" onclick="showPage('accounts')"><i class="bi bi-person-badge-fill"></i> Accounts</a>
       <a class="nav-link" data-page="orders" onclick="showPage('orders')"><i class="bi bi-receipt"></i> Orders</a>
       <a class="nav-link" data-page="users" onclick="showPage('users')"><i class="bi bi-people-fill"></i> Users</a>
       <a class="nav-link" data-page="settings" onclick="showPage('settings')"><i class="bi bi-gear-fill"></i> Settings</a>
@@ -369,40 +374,65 @@
         <div class="panel-header"><h3><i class="bi bi-trophy-fill"></i> Top Buyers</h3></div>
         <div class="table-responsive">
           <table class="data-table">
-            <thead><tr><th>User</th><th>Orders</th><th>Codes</th><th>Spent</th></tr></thead>
+            <thead><tr><th>User</th><th>Orders</th><th>Accounts</th><th>Spent</th></tr></thead>
             <tbody id="topBuyersBody"></tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- ── GIFT CODES ───────────────────────── -->
-    <div class="page" id="pg-codes">
-      <div class="stat-row" id="codesStats"></div>
+    <!-- ── TELEGRAM ACCOUNTS ───────────────────── -->
+    <div class="page" id="pg-accounts">
+      <div class="stat-row" id="accountsStats"></div>
       <div class="panel">
-        <div class="panel-header"><h3><i class="bi bi-plus-circle"></i> Add Gift Codes</h3></div>
-        <div class="panel-body">
-          <div class="mb-3">
-            <label class="form-label">Enter codes (one per line)</label>
-            <textarea class="form-control" id="newCodesArea" rows="6" placeholder="6484949758354&#10;9845687356875&#10;1234567890123"></textarea>
+        <div class="panel-header">
+          <h3><i class="bi bi-plus-circle"></i> Add Telegram Accounts</h3>
+          <div class="mode-toggle">
+            <span id="singleAddLink" class="active-toggle" onclick="toggleAddMode('single')">Single add</span>
+            <span class="text-muted mx-1">/</span>
+            <span id="bulkAddLink" onclick="toggleAddMode('bulk')">Bulk add</span>
           </div>
-          <button class="btn btn-primary-custom" onclick="addCodes()"><i class="bi bi-plus-lg"></i> Add Codes</button>
+        </div>
+        <div class="panel-body">
+          <!-- Single Add Container -->
+          <div id="singleAddContainer">
+            <div class="row g-3">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Phone Number</label>
+                <input type="text" class="form-control" id="accNumber" placeholder="+201234567890">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">OTP Link</label>
+                <input type="text" class="form-control" id="accLink" placeholder="https://otp-link.com/...">
+              </div>
+            </div>
+          </div>
+
+          <!-- Bulk Add Container (Initially Hidden) -->
+          <div id="bulkAddContainer" style="display:none">
+            <div class="mb-3">
+              <label class="form-label">Bulk entries (Number|Link, one per line)</label>
+              <textarea class="form-control" id="newAccountsArea" rows="6" placeholder="+201234567890|https://otp-link.com/123&#10;+201234567891|https://otp-link.com/456"></textarea>
+            </div>
+          </div>
+
+          <button class="btn btn-primary-custom" onclick="addAccounts()"><i class="bi bi-plus-lg"></i> Add Account(s)</button>
         </div>
       </div>
       <div class="panel">
         <div class="panel-header">
-          <h3><i class="bi bi-list-ul"></i> All Codes</h3>
+          <h3><i class="bi bi-list-ul"></i> All Accounts</h3>
         </div>
         <div class="table-responsive">
           <table class="data-table">
-            <thead><tr><th>ID</th><th>Code</th><th>Status</th><th>Order</th><th>Added</th><th>Sold At</th><th>Actions</th></tr></thead>
-            <tbody id="codesBody"></tbody>
+            <thead><tr><th>ID</th><th>Phone Number</th><th>OTP Link</th><th>Status</th><th>Order</th><th>Added</th><th>Sold At</th><th>Actions</th></tr></thead>
+            <tbody id="accountsBody"></tbody>
           </table>
         </div>
         <div class="pagination-row">
-          <button class="btn btn-ghost btn-sm" id="cPrev" onclick="codePg(-1)" disabled><i class="bi bi-chevron-left"></i></button>
-          <span id="cInfo">—</span>
-          <button class="btn btn-ghost btn-sm" id="cNext" onclick="codePg(1)" disabled><i class="bi bi-chevron-right"></i></button>
+          <button class="btn btn-ghost btn-sm" id="aPrev" onclick="accountPg(-1)" disabled><i class="bi bi-chevron-left"></i></button>
+          <span id="aInfo">—</span>
+          <button class="btn btn-ghost btn-sm" id="aNext" onclick="accountPg(1)" disabled><i class="bi bi-chevron-right"></i></button>
         </div>
       </div>
     </div>
@@ -431,7 +461,7 @@
         <div class="panel-header"><h3><i class="bi bi-people"></i> All Users</h3></div>
         <div class="table-responsive">
           <table class="data-table">
-            <thead><tr><th>ID</th><th>Telegram ID</th><th>Username</th><th>Name</th><th>Balance</th><th>Joined</th></tr></thead>
+            <thead><tr><th>ID</th><th>Telegram ID</th><th>Username</th><th>Name</th><th>Balance</th><th>Joined</th><th>Actions</th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table>
         </div>
@@ -454,15 +484,10 @@
         <div class="panel-header"><h3><i class="bi bi-currency-dollar"></i> Pricing</h3></div>
         <div class="panel-body">
           <div class="mb-3">
-            <label class="form-label">Price per Gift Code (USD)</label>
+            <label class="form-label">Price per Account (USD)</label>
             <input type="number" class="form-control" id="setPrice" step="0.01" min="0" placeholder="1.00">
           </div>
-          <button class="btn btn-primary-custom mb-3" onclick="saveSetting('price_per_code',document.getElementById('setPrice').value)"><i class="bi bi-check-lg"></i> Update Price</button>
-          <div class="mb-3">
-            <label class="form-label">Worth per Gift Code (EGP)</label>
-            <input type="number" class="form-control" id="setWorth" step="1" min="0" placeholder="10">
-          </div>
-          <button class="btn btn-primary-custom" onclick="saveSetting('worth_per_code',document.getElementById('setWorth').value)"><i class="bi bi-check-lg"></i> Update Worth</button>
+          <button class="btn btn-primary-custom mb-3" onclick="saveSetting('price_per_account',document.getElementById('setPrice').value)"><i class="bi bi-check-lg"></i> Update Price</button>
         </div>
       </div>
     </div>
@@ -542,10 +567,27 @@ function showPage(name) {
 /* ── Refresh All ───────────────────────────── */
 function refreshAll() {
   loadOverview();
-  loadCodes();
+  loadAccounts();
   loadOrders();
   loadUsers();
   loadSettings();
+}
+
+var accountsPage = 1;
+var addMode = 'single';
+
+function toggleAddMode(mode) {
+  addMode = mode;
+  document.getElementById('singleAddContainer').style.display = (mode === 'single' ? 'block' : 'none');
+  document.getElementById('bulkAddContainer').style.display = (mode === 'bulk' ? 'block' : 'none');
+  
+  if (mode === 'single') {
+    document.getElementById('singleAddLink').classList.add('active-toggle');
+    document.getElementById('bulkAddLink').classList.remove('active-toggle');
+  } else {
+    document.getElementById('singleAddLink').classList.remove('active-toggle');
+    document.getElementById('bulkAddLink').classList.add('active-toggle');
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -559,8 +601,8 @@ function loadOverview() {
     document.getElementById('overviewStats').innerHTML =
       statCard('green', 'bi-cash-stack', 'Total Revenue', '$' + num(d.totalRevenue), d.paidOrders + ' paid orders') +
       statCard('purple', 'bi-box-seam-fill', 'Total Orders', d.totalOrders, d.deliveredOrders + ' delivered \u00b7 ' + d.pendingOrders + ' pending') +
-      statCard('amber', 'bi-gift-fill', 'Codes Sold', d.totalCodesSold, 'of ' + d.totalCodes + ' total') +
-      statCard('blue', 'bi-boxes', 'Available Stock', d.availableCodes, (d.totalCodes > 0 ? ((d.availableCodes / d.totalCodes) * 100).toFixed(1) : '0') + '% remaining') +
+      statCard('amber', 'bi-telephone-fill', 'Accounts Sold', d.totalAccountsSold, 'of ' + d.totalAccounts + ' total') +
+      statCard('blue', 'bi-person-badge-fill', 'Available Stock', d.availableAccounts, (d.totalAccounts > 0 ? ((d.availableAccounts / d.totalAccounts) * 100).toFixed(1) : '0') + '% remaining') +
       statCard('teal', 'bi-people-fill', 'Total Users', d.totalUsers, '') +
       statCard('red', 'bi-wallet2', 'Total Refunded', '$' + num(d.totalRefunded), 'Balance held: $' + num(d.totalRefundedBalance));
 
@@ -583,7 +625,7 @@ function loadOverview() {
       tb.innerHTML = '<tr><td colspan="4" class="empty-state"><i class="bi bi-trophy"></i><p>No purchases yet</p></td></tr>';
     } else {
       tb.innerHTML = d.topBuyers.map(function(b) {
-        return '<tr><td class="mono">' + b.user_id + '</td><td>' + b.total_orders + '</td><td>' + b.total_codes + '</td><td>$' + num(b.total_spent) + '</td></tr>';
+        return '<tr><td class="mono">' + b.user_id + '</td><td>' + b.total_orders + '</td><td>' + b.total_accounts + '</td><td>$' + num(b.total_spent) + '</td></tr>';
       }).join('');
     }
   });
@@ -613,57 +655,76 @@ function renderChart(data) {
 }
 
 /* ═══════════════════════════════════════════════
-   GIFT CODES
+   ACCOUNTS
    ═══════════════════════════════════════════════ */
-function loadCodes() {
+function loadAccounts() {
   api('/api/admin/dashboard').then(function(r) {
     if (!r || !r.success) return;
     var d = r.data;
-    document.getElementById('codesStats').innerHTML =
-      statCard('purple', 'bi-upc-scan', 'Total Codes', d.totalCodes, '') +
-      statCard('green', 'bi-check-circle-fill', 'Available', d.availableCodes, '') +
-      statCard('amber', 'bi-cart-fill', 'Sold', d.soldCodes, '');
+    document.getElementById('accountsStats').innerHTML =
+      statCard('purple', 'bi-person-badge-fill', 'Total Accounts', d.totalAccounts, '') +
+      statCard('green', 'bi-check-circle-fill', 'Available', d.availableAccounts, '') +
+      statCard('amber', 'bi-cart-fill', 'Sold', d.soldAccounts, '');
   });
-  api('/api/admin/gift-codes?page=' + codesPage).then(function(r) {
+  api('/api/admin/accounts?page=' + accountsPage).then(function(r) {
     if (!r || !r.success) return;
     var d = r.data;
-    var body = document.getElementById('codesBody');
-    if (!d.codes || d.codes.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="bi bi-upc"></i><p>No gift codes</p></td></tr>';
+    var body = document.getElementById('accountsBody');
+    if (!d.accounts || d.accounts.length === 0) {
+      body.innerHTML = '<tr><td colspan="8" class="empty-state"><i class="bi bi-person-badge"></i><p>No accounts</p></td></tr>';
     } else {
-      body.innerHTML = d.codes.map(function(c) {
-        var actions = c.is_sold ? '' : '<button class="btn btn-sm btn-ghost p-1" style="color:#ef4444" onclick="deleteCode(' + c.id + ')"><i class="bi bi-trash"></i></button>';
-        return '<tr><td class="mono">#' + c.id + '</td><td class="mono">' + c.code + '</td><td>' + (c.is_sold ? '<span class="badge-status badge-sold"><i class="bi bi-x-circle-fill"></i> Sold</span>' : '<span class="badge-status badge-available"><i class="bi bi-check-circle-fill"></i> Available</span>') + '</td><td>' + (c.order_id || '\u2014') + '</td><td>' + fmtDate(c.created_at) + '</td><td>' + (c.sold_at ? fmtDate(c.sold_at) : '\u2014') + '</td><td>' + actions + '</td></tr>';
+      body.innerHTML = d.accounts.map(function(a) {
+        var actions = a.is_sold ? '' : '<button class="btn btn-sm btn-ghost p-1" style="color:#ef4444" onclick="deleteAccount(' + a.id + ')"><i class="bi bi-trash"></i></button>';
+        return '<tr><td class="mono">#' + a.id + '</td><td class="mono">' + a.number + '</td><td class="text-truncate-cell"><a href="' + a.otp_link + '" target="_blank" class="mono" style="color:var(--primary)">Link</a></td><td>' + (a.is_sold ? '<span class="badge-status badge-sold"><i class="bi bi-x-circle-fill"></i> Sold</span>' : '<span class="badge-status badge-available"><i class="bi bi-check-circle-fill"></i> Available</span>') + '</td><td>' + (a.order_id || '\u2014') + '</td><td>' + fmtDate(a.created_at) + '</td><td>' + (a.sold_at ? fmtDate(a.sold_at) : '\u2014') + '</td><td>' + actions + '</td></tr>';
       }).join('');
     }
-    document.getElementById('cInfo').textContent = 'Page ' + d.page + ' of ' + (d.totalPages || 1);
-    document.getElementById('cPrev').disabled = d.page <= 1;
-    document.getElementById('cNext').disabled = d.page >= d.totalPages;
+    document.getElementById('aInfo').textContent = 'Page ' + d.page + ' of ' + (d.totalPages || 1);
+    document.getElementById('aPrev').disabled = d.page <= 1;
+    document.getElementById('aNext').disabled = d.page >= d.totalPages;
   });
 }
 
-function codePg(delta) { codesPage += delta; if (codesPage < 1) codesPage = 1; loadCodes(); }
+function accountPg(delta) { accountsPage += delta; if (accountsPage < 1) accountsPage = 1; loadAccounts(); }
 
-function addCodes() {
-  var ta = document.getElementById('newCodesArea');
-  var text = ta.value.trim();
-  if (!text) return toast('Please enter at least one code', 'err');
-  var arr = text.split('\n');
-  var codes = [];
-  for (var i = 0; i < arr.length; i++) { var c = arr[i].trim(); if (c) codes.push(c); }
-  if (codes.length === 0) return toast('No valid codes found', 'err');
-  api('/api/admin/gift-codes', 'POST', { codes: codes }).then(function(r) {
-    if (r && r.success) { toast(r.message, 'ok'); ta.value = ''; loadCodes(); loadOverview(); }
+function addAccounts() {
+  var accounts = [];
+  if (addMode === 'single') {
+    var num_val = document.getElementById('accNumber').value.trim();
+    var link_val = document.getElementById('accLink').value.trim();
+    if (!num_val || !link_val) return toast('Both fields are required', 'err');
+    accounts.push(num_val + '|' + link_val);
+  } else {
+    var ta = document.getElementById('newAccountsArea');
+    var text = ta.value.trim();
+    if (!text) return toast('Please enter at least one account', 'err');
+    var arr = text.split('\n');
+    for (var i = 0; i < arr.length; i++) { var c = arr[i].trim(); if (c) accounts.push(c); }
+  }
+  
+  if (accounts.length === 0) return toast('No valid accounts found', 'err');
+
+  api('/api/admin/accounts', 'POST', { accounts: accounts }).then(function(r) {
+    if (r && r.success) { 
+      toast(r.message, 'ok'); 
+      if (addMode === 'single') {
+         document.getElementById('accNumber').value = '';
+         document.getElementById('accLink').value = '';
+      } else {
+         document.getElementById('newAccountsArea').value = '';
+      }
+      loadAccounts(); 
+      loadOverview(); 
+    }
     else toast(r && r.message ? r.message : 'Failed', 'err');
-  }).catch(function() { toast('Failed to add codes', 'err'); });
+  }).catch(function() { toast('Failed to add accounts', 'err'); });
 }
 
-function deleteCode(id) {
-  if (!confirm('Are you sure you want to delete this code?')) return;
-  api('/api/admin/gift-codes/' + id, 'DELETE').then(function(r) {
-    if (r && r.success) { toast(r.message, 'ok'); loadCodes(); loadOverview(); }
+function deleteAccount(id) {
+  if (!confirm('Are you sure you want to delete this account?')) return;
+  api('/api/admin/accounts/' + id, 'DELETE').then(function(r) {
+    if (r && r.success) { toast(r.message, 'ok'); loadAccounts(); loadOverview(); }
     else toast(r && r.message ? r.message : 'Failed', 'err');
-  }).catch(function() { toast('Failed to delete code', 'err'); });
+  }).catch(function() { toast('Failed to delete account', 'err'); });
 }
 
 /* ═══════════════════════════════════════════════
@@ -698,11 +759,35 @@ function loadUsers() {
     if (!r || !r.success) return;
     var body = document.getElementById('usersBody');
     if (!r.data || r.data.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="bi bi-people"></i><p>No users yet</p></td></tr>';
+      body.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="bi bi-people"></i><p>No users yet</p></td></tr>';
     } else {
       body.innerHTML = r.data.map(function(u) {
-        return '<tr><td class="mono">#' + u.id + '</td><td class="mono">' + u.telegram_id + '</td><td>' + (u.username ? '@' + u.username : '\u2014') + '</td><td>' + (u.first_name || '') + ' ' + (u.last_name || '') + '</td><td>' + (u.refunded_balance > 0 ? '$' + num(u.refunded_balance) : '\u2014') + '</td><td>' + fmtDate(u.created_at) + '</td></tr>';
+        var actions = '<button class="btn btn-sm btn-ghost p-1" style="color:var(--primary)" onclick="editUserBalance(\'' + u.telegram_id + '\',' + u.refunded_balance + ')"><i class="bi bi-pencil-square"></i></button>';
+        return '<tr><td class="mono">#' + u.id + '</td><td class="mono">' + u.telegram_id + '</td><td>' + (u.username ? '@' + u.username : '\u2014') + '</td><td>' + (u.first_name || '') + ' ' + (u.last_name || '') + '</td><td>' + (u.refunded_balance > 0 ? '$' + num(u.refunded_balance) : '\u2014') + '</td><td>' + fmtDate(u.created_at) + '</td><td>' + actions + '</td></tr>';
       }).join('');
+    }
+  });
+}
+
+function editUserBalance(telegramId, currentBalance) {
+  Swal.fire({
+    title: 'Edit Balance',
+    text: 'Set new refunded balance for ' + telegramId,
+    input: 'number',
+    inputAttributes: { step: '0.01', min: '0' },
+    inputValue: currentBalance,
+    showCancelButton: true,
+    confirmButtonText: 'Update Balance',
+    confirmButtonColor: 'var(--primary)',
+    cancelButtonColor: '#64748b'
+  }).then((result) => {
+    if (result.isConfirmed && result.value !== null) {
+      var amount = parseFloat(result.value);
+      if (isNaN(amount)) return toast('Please enter a valid number', 'err');
+      api('/api/admin/users/' + telegramId + '/balance', 'POST', { amount: amount }).then(function(r) {
+        if (r && r.success) { toast(r.message, 'ok'); loadUsers(); }
+        else toast(r && r.message ? r.message : 'Failed', 'err');
+      }).catch(function() { toast('Failed to update balance', 'err'); });
     }
   });
 }
@@ -713,8 +798,7 @@ function loadUsers() {
 function loadSettings() {
   api('/api/admin/settings').then(function(r) {
     if (!r || !r.success) return;
-    document.getElementById('setPrice').value = r.data.price_per_code || '';
-    document.getElementById('setWorth').value = r.data.worth_per_code || '';
+    document.getElementById('setPrice').value = r.data.price_per_account || '';
   });
 }
 
