@@ -16,6 +16,53 @@ function createBot() {
     })
   );
 
+  // ─── Force Join Channel ───────────────────────────────
+  bot.use(async (ctx, next) => {
+    const channelUsername = process.env.CHANNEL_USERNAME;
+    if (!channelUsername || !ctx.from || ctx.chat?.type !== 'private' || ctx.callbackQuery?.data === 'check_subscription') {
+      return next();
+    }
+
+    try {
+      const member = await ctx.api.getChatMember(channelUsername, ctx.from.id);
+      const isMember = ['member', 'administrator', 'creator'].includes(member.status);
+
+      if (!isMember) {
+        const keyboard = new InlineKeyboard()
+          .url('📢 Join Channel', `https://t.me/${channelUsername.replace('@', '')}`)
+          .row()
+          .text('✅ Joined', 'check_subscription');
+
+        return ctx.reply(
+          `⚠️ <b>Access Denied!</b>\n\nYou must be a member of our channel to use this bot.\n\n` +
+          `Join our channel and click the button below to continue.`,
+          { parse_mode: 'HTML', reply_markup: keyboard }
+        );
+      }
+    } catch (err) {
+      console.error('[ForceJoin] Error:', err.message);
+    }
+    return next();
+  });
+
+  bot.callbackQuery('check_subscription', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const channelUsername = process.env.CHANNEL_USERNAME;
+    
+    try {
+      const member = await ctx.api.getChatMember(channelUsername, ctx.from.id);
+      const isMember = ['member', 'administrator', 'creator'].includes(member.status);
+      
+      if (isMember) {
+        await ctx.editMessageText('✅ <b>Success!</b> You have joined the channel. You can now use the bot.\n\nType /start to begin!', { parse_mode: 'HTML' });
+      } else {
+        await ctx.reply('❌ <b>You still haven\'t joined!</b>\nPlease join the channel first.', { parse_mode: 'HTML' });
+      }
+    } catch (err) {
+      await ctx.reply('❌ <b>Error checking membership.</b> Please try again later.');
+    }
+  });
+
   // ─── /start Command ──────────────────────────────────
 
   bot.command('start', async (ctx) => {

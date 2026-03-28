@@ -109,6 +109,31 @@ function createServer(bot) {
     res.json({ success: true, message: 'User balance updated' });
   });
 
+  // Broadcast
+  app.post('/api/admin/broadcast', requireAuth, async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ success: false, message: 'Message required' });
+
+    const users = db.getAllUsers();
+    res.json({ success: true, message: `Broadcast started for ${users.length} users` });
+
+    // Background sending
+    (async () => {
+      let sent = 0;
+      let failed = 0;
+      for (const user of users) {
+        try {
+          await bot.api.sendMessage(user.telegram_id, message, { parse_mode: 'HTML' });
+          sent++;
+        } catch (err) {
+          failed++;
+        }
+        await new Promise(r => setTimeout(r, 50)); // rate limit safety
+      }
+      console.log(`[Broadcast] Done! Sent: ${sent}, Failed: ${failed}`);
+    })();
+  });
+
   // Orders
   app.get('/api/admin/orders', requireAuth, (req, res) => {
     const page = parseInt(req.query.page) || 1;

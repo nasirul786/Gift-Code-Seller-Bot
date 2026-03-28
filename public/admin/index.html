@@ -345,6 +345,7 @@
       <a class="nav-link" data-page="accounts" onclick="showPage('accounts')"><i class="bi bi-person-badge-fill"></i> Accounts</a>
       <a class="nav-link" data-page="orders" onclick="showPage('orders')"><i class="bi bi-receipt"></i> Orders</a>
       <a class="nav-link" data-page="users" onclick="showPage('users')"><i class="bi bi-people-fill"></i> Users</a>
+      <a class="nav-link" data-page="broadcast" onclick="showPage('broadcast')"><i class="bi bi-megaphone-fill"></i> Broadcast</a>
       <a class="nav-link" data-page="settings" onclick="showPage('settings')"><i class="bi bi-gear-fill"></i> Settings</a>
     </nav>
   </div>
@@ -491,7 +492,22 @@
         </div>
       </div>
     </div>
-
+    <!-- ── BROADCAST ───────────────────────── -->
+    <div class="page" id="pg-broadcast">
+      <div class="panel">
+        <div class="panel-header"><h3><i class="bi bi-megaphone-fill"></i> Broadcast Message</h3></div>
+        <div class="panel-body">
+          <div class="alert alert-info py-2" style="font-size:13px">
+            <i class="bi bi-info-circle"></i> Messages support <b>HTML</b> formatting (b, i, u, code, a).
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Message Content</label>
+            <textarea class="form-control" id="broadcastMsg" rows="8" placeholder="Enter message to send to all users..."></textarea>
+          </div>
+          <button class="btn btn-primary-custom" id="sendBroadcastBtn" onclick="sendBroadcast()"><i class="bi bi-send-fill"></i> Send to All Users</button>
+        </div>
+      </div>
+    </div>
   </div><!-- /main-content -->
 </div><!-- /app -->
 
@@ -847,7 +863,31 @@ function badge(s) {
   var icons = { delivered: 'bi-check-circle-fill', paid: 'bi-credit-card-fill', pending: 'bi-hourglass-split', expired: 'bi-x-octagon-fill', failed: 'bi-x-octagon-fill' };
   return '<span class="badge-status ' + cls + '"><i class="bi ' + (icons[s] || 'bi-question-circle') + '"></i> ' + (s || 'unknown') + '</span>';
 }
-
+function sendBroadcast() {
+  const msg = document.getElementById('broadcastMsg').value.trim();
+  if (!msg) return toast('Message is required', 'err');
+  
+  if (!confirm('Are you sure you want to send this broadcast to ALL users?')) return;
+  
+  const btn = document.getElementById('sendBroadcastBtn');
+  const oldText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending...';
+  
+  api('/api/admin/broadcast', 'POST', { message: msg }).then(function(r) {
+    if (r && r.success) {
+      toast(r.message, 'ok');
+      document.getElementById('broadcastMsg').value = '';
+    } else {
+      toast(r && r.message ? r.message : 'Failed to start broadcast', 'err');
+    }
+  }).catch(function(e) {
+    toast('Broadcast failed: ' + e, 'err');
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+  });
+}
 function fmtDate(str) {
   if (!str) return '\u2014';
   try {
